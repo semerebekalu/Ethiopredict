@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analysis | EthioPredict</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #00E676; --green-dark: #00C853; --bg: #0a0a0a;
+  --bg2: #111111; --bg3: #1a1a1a; --border: #222;
+  --text: #f0f0f0; --muted: #666; --gold: #FFD600;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; }
+nav {
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 0 20px; position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between; height: 60px;
+}
+.logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; color: var(--green); letter-spacing: 2px; text-decoration: none; }
+.logo span { color: var(--text); }
+.nav-links { display: flex; gap: 24px; }
+.nav-links a { color: var(--muted); text-decoration: none; font-size: 0.9rem; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; transition: color 0.2s; }
+.nav-links a:hover, .nav-links a.active { color: var(--green); }
+.lang-toggle {
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text); padding: 6px 14px; border-radius: 20px;
+  cursor: pointer; font-family: 'Outfit', sans-serif; font-size: 0.8rem;
+  font-weight: 600; transition: all 0.2s;
+}
+.lang-toggle:hover { border-color: var(--green); color: var(--green); }
+.tg-nav-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #229ED9; color: #fff;
+  padding: 7px 14px; border-radius: 8px;
+  text-decoration: none; font-weight: 700; font-size: 0.8rem;
+  transition: transform 0.2s, opacity 0.2s;
+}
+.tg-nav-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.nav-right { display: flex; gap: 10px; align-items: center; }
+.container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+.page-title { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; margin-bottom: 8px; }
+.page-title span { color: var(--green); }
+.page-sub { color: var(--muted); margin-bottom: 40px; }
+.articles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.article-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden; transition: border-color 0.2s, transform 0.2s;
+  cursor: pointer;
+}
+.article-card:hover { border-color: var(--green); transform: translateY(-2px); }
+.article-thumb {
+  height: 140px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 4rem;
+}
+.epl-thumb { background: linear-gradient(135deg, #3d0099, #7b00ff); }
+.ucl-thumb { background: linear-gradient(135deg, #001a4d, #0044cc); }
+.eth-thumb { background: linear-gradient(135deg, #005a00, #00cc00); }
+.tips-thumb { background: linear-gradient(135deg, #4d2600, #cc6600); }
+.article-body { padding: 16px; }
+.article-tag {
+  font-size: 0.68rem; color: var(--green); font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;
+}
+.article-title { font-weight: 700; font-size: 1rem; margin-bottom: 8px; line-height: 1.4; }
+.article-excerpt { font-size: 0.82rem; color: var(--muted); line-height: 1.6; margin-bottom: 12px; }
+.article-meta { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); }
+.bet-banner {
+  background: linear-gradient(135deg, #1a2a1a, #0d1a0d);
+  border: 1px solid var(--green); border-radius: 12px;
+  padding: 24px; text-align: center; margin: 40px 0;
+}
+.bet-banner h2 { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--green); margin-bottom: 8px; }
+.bet-banner p { color: var(--muted); margin-bottom: 16px; font-size: 0.9rem; }
+.bet-banner-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.banner-btn {
+  background: var(--green); color: #000; font-weight: 800;
+  padding: 12px 28px; border-radius: 8px; text-decoration: none;
+  font-size: 0.9rem; letter-spacing: 1px; transition: transform 0.2s;
+}
+.banner-btn:hover { transform: scale(1.03); }
+.banner-btn.secondary {
+  background: transparent; color: var(--text);
+  border: 1px solid var(--border);
+}
+.banner-btn.secondary:hover { border-color: var(--green); color: var(--green); }
+footer { background: var(--bg2); border-top: 1px solid var(--border); padding: 24px 20px; text-align: center; }
+footer p { color: var(--muted); font-size: 0.75rem; }
+@media (max-width: 600px) { .nav-links { display: none; } .nav-right { gap: 6px; } .tg-nav-btn span { display: none; } }
+</style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="logo">Ethio<span>Predict</span></a>
+  <div class="nav-links">
+    <a href="index.html">Predictions</a>
+    <a href="blog.html" class="active">Analysis</a>
+  </div>
+  <div class="nav-right">
+    <button class="lang-toggle" onclick="toggleLang()" id="langBtn">🇪🇹 አማርኛ</button>
+    <a href="https://t.me/Hulusport_tips" class="tg-nav-btn" target="_blank">✈️ Telegram</a>
+  </div>
+</nav>
+
+<div class="container">
+  <h1 class="page-title">Football <span>Analysis</span></h1>
+  <p class="page-sub">In-depth match previews, team form, and betting insights — in Amharic & English</p>
+
+  <div class="articles-grid">
+    <div class="article-card">
+      <div class="article-thumb epl-thumb">🏆</div>
+      <div class="article-body">
+        <div class="article-tag">EPL Analysis</div>
+        <div class="article-title">Arsenal vs Man City: Who Controls the Title Race?</div>
+        <div class="article-excerpt">Both teams enter this match in stunning form. We break down the key battles, tactical setups, and where the goals will come from.</div>
+        <div class="article-meta"><span>May 2, 2026</span><span>5 min read</span></div>
+      </div>
+    </div>
+
+    <div class="article-card">
+      <div class="article-thumb ucl-thumb">⭐</div>
+      <div class="article-body">
+        <div class="article-tag">Champions League</div>
+        <div class="article-title">UCL Semi-Finals Preview: Complete Betting Guide</div>
+        <div class="article-excerpt">Everything you need to know before placing your bets on this week's Champions League semi-finals. Form, odds, and our top picks.</div>
+        <div class="article-meta"><span>May 1, 2026</span><span>7 min read</span></div>
+      </div>
+    </div>
+
+    <div class="article-card">
+      <div class="article-thumb eth-thumb">🇪🇹</div>
+      <div class="article-body">
+        <div class="article-tag">Ethiopian Premier League</div>
+        <div class="article-title">Saint George vs Fasil Kenema: Derby Day Preview</div>
+        <div class="article-excerpt">Ethiopia's biggest match of the week. We analyze team form, head-to-head record, and give you our prediction for the Ethiopian Premier League clash.</div>
+        <div class="article-meta"><span>Apr 30, 2026</span><span>4 min read</span></div>
+      </div>
+    </div>
+
+    <div class="article-card">
+      <div class="article-thumb tips-thumb">💡</div>
+      <div class="article-body">
+        <div class="article-tag">Betting Guide</div>
+        <div class="article-title">How to Bet Responsibly: A Guide for Ethiopian Fans</div>
+        <div class="article-excerpt">Your complete beginner's guide to understanding odds, managing your bankroll, and betting smart on 1xBet and Melbet in Ethiopia.</div>
+        <div class="article-meta"><span>Apr 28, 2026</span><span>6 min read</span></div>
+      </div>
+    </div>
+
+    <div class="article-card">
+      <div class="article-thumb epl-thumb">⚽</div>
+      <div class="article-body">
+        <div class="article-tag">EPL Analysis</div>
+        <div class="article-title">Top 5 EPL Bets This Weekend: Value Odds You Can't Miss</div>
+        <div class="article-excerpt">We've identified 5 high-value betting opportunities this EPL gameweek. All picks come with odds, confidence levels, and reasoning.</div>
+        <div class="article-meta"><span>Apr 27, 2026</span><span>5 min read</span></div>
+      </div>
+    </div>
+
+    <div class="article-card">
+      <div class="article-thumb ucl-thumb">🌍</div>
+      <div class="article-body">
+        <div class="article-tag">African Football</div>
+        <div class="article-title">AFCON 2026 Qualifiers: Ethiopia's Path to Glory</div>
+        <div class="article-excerpt">Can the Walias make it? We look at Ethiopia's qualifying campaign, form, and what it will take to reach the AFCON 2026 tournament.</div>
+        <div class="article-meta"><span>Apr 25, 2026</span><span>8 min read</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bet-banner">
+    <h2>🎯 Ready to Bet? Get Your Bonus Now</h2>
+    <p>Use our predictions on Ethiopia's top rated betting platforms. New users get exclusive welcome bonuses.</p>
+    <div class="bet-banner-btns">
+      <a href="#" class="banner-btn" target="_blank">🏆 Join 1xBet</a>
+      <a href="#" class="banner-btn secondary" target="_blank">Melbet Ethiopia →</a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>⚠️ EthioPredict is for entertainment only. Please bet responsibly. 18+ only.</p>
+</footer>
+
+<script>
+let isAmharic = false;
+const translations = {
+  en: {
+    pageTitle: 'Football <span style="color:var(--green)">Analysis</span>',
+    pageSub: 'In-depth match previews, team form, and betting insights — in Amharic & English',
+    bannerTitle: '🎯 Ready to Bet? Get Your Bonus Now',
+    bannerSub: "Use our predictions on Ethiopia's top rated betting platforms. New users get exclusive welcome bonuses.",
+    btn1: '🏆 Join 1xBet',
+    btn2: 'Melbet Ethiopia →',
+    tgBtn: '✈️ Telegram',
+    langBtn: '🇪🇹 አማርኛ',
+  },
+  am: {
+    pageTitle: 'የእግር ኳስ <span style="color:var(--green)">ትንተና</span>',
+    pageSub: 'ጥልቅ የጨዋታ ቅድመ-ዕይታዎች፣ የቡድን ቅርፅ እና የቁማር ምክሮች',
+    bannerTitle: '🎯 ለመወርወር ዝግጁ ነዎት?',
+    bannerSub: 'ምክሮቻችንን በኢትዮጵያ ምርጥ የቁማር ድረ-ገጾች ላይ ይጠቀሙ።',
+    btn1: '🏆 1xBet ይቀላቀሉ',
+    btn2: 'Melbet ኢትዮጵያ →',
+    tgBtn: '✈️ ቴሌግራም',
+    langBtn: '🇬🇧 English',
+  }
+};
+
+function toggleLang() {
+  isAmharic = !isAmharic;
+  const t = isAmharic ? translations.am : translations.en;
+  document.getElementById('langBtn').textContent = t.langBtn;
+  document.querySelector('.page-title').innerHTML = t.pageTitle;
+  document.querySelector('.page-sub').textContent = t.pageSub;
+  document.querySelector('.bet-banner h2').textContent = t.bannerTitle;
+  document.querySelector('.bet-banner p').textContent = t.bannerSub;
+  const btns = document.querySelectorAll('.banner-btn');
+  btns[0].textContent = t.btn1;
+  btns[1].textContent = t.btn2;
+  document.querySelector('.tg-nav-btn').textContent = t.tgBtn;
+}
+</script>
+</body>
+</html>
