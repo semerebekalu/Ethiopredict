@@ -1,7 +1,6 @@
 import type { AffiliateConfig } from '@/types';
 
-// Replace these with your actual tracked affiliate URLs
 export const affiliates: AffiliateConfig = {
-  onexbet: '#', // e.g. 'https://1xbet.com/en/?ref=YOUR_ID'
-  melbet: '#',  // e.g. 'https://melbet.com/?ref=YOUR_ID'
+  onexbet: 'https://reffpa.com/L?tag=d_5554774m_97c_&site=5554774&ad=97',
+  melbet:  'https://refpa3665.com/L?tag=d_5554780m_45415c_&site=5554780&ad=45415',
 };

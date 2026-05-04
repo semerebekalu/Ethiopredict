@@ -3,6 +3,9 @@ export type Outcome = 'win' | 'loss' | 'void';
 export type MatchStatus = 'live' | 'upcoming';
 export type LeagueKey = 'epl' | 'ucl' | 'eth' | 'laliga' | 'all';
 
+/** Short label shown on the tip badge, e.g. "1X2", "BTTS", "Over 2.5" */
+export type TipType = '1X2' | 'BTTS' | 'Over 2.5' | 'Under 2.5' | 'Double Chance' | 'Draw No Bet' | 'Asian Handicap' | string;
+
 export interface Prediction {
   id: string;
   league: LeagueKey;
@@ -10,9 +13,12 @@ export interface Prediction {
   time: string;
   home: string;
   away: string;
+  homeFlag: string;   // emoji flag or short initials, e.g. "🏴󠁧󠁢󠁥󠁮󠁧󠁿" or "ARS"
+  awayFlag: string;
   homeForm: FormResult[];
   awayForm: FormResult[];
-  tip: string;
+  tipType: TipType;   // market label shown on badge
+  tip: string;        // human-readable tip text
   odds: string;
   confidence: number; // 0–100
   affiliate: string;

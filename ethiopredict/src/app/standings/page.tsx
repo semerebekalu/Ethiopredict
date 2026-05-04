@@ -1,63 +1,56 @@
-'use client';
+/**
+ * Standings page — Server Component.
+ * Fetches live EPL + Ethiopian Premier League data from API-Football.
+ * Falls back to static seed data if RAPIDAPI_KEY is not set or the request fails.
+ */
 
-import { useState } from 'react';
 import LeagueTable from '@/components/standings/LeagueTable';
+import StandingsTabSwitcher from '@/components/standings/StandingsTabSwitcher';
+import { fetchEplStandings, fetchEthStandings } from '@/lib/football-api';
 import { eplStandings, ethStandings } from '@/data/standings';
-import { useLanguage } from '@/context/LanguageContext';
+import type { LeagueTableRow } from '@/types';
 
-type LeagueTab = 'epl' | 'eth';
+export const metadata = {
+  title: 'Standings | EthioPredict',
+  description: 'Live EPL and Ethiopian Premier League standings updated hourly.',
+};
 
-export default function StandingsPage() {
-  const { t } = useLanguage();
-  const [active, setActive] = useState<LeagueTab>('epl');
+// Revalidate this page every hour (matches the API fetch cache)
+export const revalidate = 3600;
 
-  const tabs: { key: LeagueTab; label: string }[] = [
-    { key: 'epl', label: `🏴󠁧󠁢󠁥󠁮󠁧󠁿 ${t('table.epl')}` },
-    { key: 'eth', label: `🇪🇹 ${t('table.eth')}` },
-  ];
+export default async function StandingsPage() {
+  // Fetch live data; fall back to static if unavailable
+  const [liveEpl, liveEth] = await Promise.all([
+    fetchEplStandings(),
+    fetchEthStandings(),
+  ]);
+
+  const eplRows: LeagueTableRow[] = liveEpl ?? eplStandings;
+  const ethRows: LeagueTableRow[] = liveEth ?? ethStandings;
+  const isLive = liveEpl !== null || liveEth !== null;
 
   return (
     <section className="max-w-4xl mx-auto px-4 py-10">
-      <h1 className="font-[family-name:var(--font-bebas)] text-4xl text-[#f0f0f0] tracking-widest mb-6">
-        League <span className="text-[#00E676]">Standings</span>
-      </h1>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <h1 className="font-[family-name:var(--font-bebas)] text-4xl text-[#f0f0f0] tracking-widest">
+          League <span className="text-[#00E676]">Standings</span>
+        </h1>
 
-      {/* Tab switcher */}
-      <div className="flex gap-2 mb-6" role="tablist">
-        {tabs.map(({ key, label }) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={active === key}
-            onClick={() => setActive(key)}
-            className={`px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wider border transition-all
-              ${active === key
-                ? 'bg-[#00E676] text-black border-[#00E676]'
-                : 'bg-[#1a1a1a] text-[#666666] border-[#222222] hover:border-[#00E676] hover:text-[#f0f0f0]'
-              }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Legend */}
-      <div className="flex gap-4 mb-4 text-xs text-[#666666]">
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-[#00E676]" /> Champions League
-        </span>
-        {active === 'epl' && (
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-[#FF1744]" /> Relegation
+        {/* Live / static badge */}
+        {isLive ? (
+          <span className="flex items-center gap-1.5 text-[0.65rem] font-bold uppercase tracking-wider text-[#00E676] bg-[#00E676]/10 border border-[#00E676]/30 px-3 py-1 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00E676] animate-pulse" />
+            Live data
+          </span>
+        ) : (
+          <span className="text-[0.65rem] font-bold uppercase tracking-wider text-[#555555] bg-[#1a1a1a] border border-[#222222] px-3 py-1 rounded-full">
+            Static data — add API key for live
           </span>
         )}
       </div>
 
-      {active === 'epl' ? (
-        <LeagueTable rows={eplStandings} highlightTop={4} highlightBottom={3} />
-      ) : (
-        <LeagueTable rows={ethStandings} highlightTop={3} highlightBottom={2} />
-      )}
+      {/* Client tab switcher receives pre-fetched rows as props */}
+      <StandingsTabSwitcher eplRows={eplRows} ethRows={ethRows} />
     </section>
   );
 }

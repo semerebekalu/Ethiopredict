@@ -6,14 +6,15 @@ import type { LeagueKey } from '@/types';
 interface Tab {
   key: LeagueKey;
   labelKey: string;
+  icon: string;
 }
 
 const TABS: Tab[] = [
-  { key: 'all',    labelKey: 'filter.all' },
-  { key: 'epl',    labelKey: 'filter.epl' },
-  { key: 'ucl',    labelKey: 'filter.ucl' },
-  { key: 'eth',    labelKey: 'filter.eth' },
-  { key: 'laliga', labelKey: 'filter.laliga' },
+  { key: 'all',    labelKey: 'filter.all',    icon: '⚽' },
+  { key: 'epl',    labelKey: 'filter.epl',    icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+  { key: 'ucl',    labelKey: 'filter.ucl',    icon: '⭐' },
+  { key: 'eth',    labelKey: 'filter.eth',    icon: '🇪🇹' },
+  { key: 'laliga', labelKey: 'filter.laliga', icon: '🇪🇸' },
 ];
 
 interface LeagueFilterTabsProps {
@@ -25,8 +26,12 @@ export default function LeagueFilterTabs({ activeLeague, onSelect }: LeagueFilte
   const { t } = useLanguage();
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 mb-5 scrollbar-none" role="tablist" aria-label="Filter by league">
-      {TABS.map(({ key, labelKey }) => {
+    <div
+      className="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-none"
+      role="tablist"
+      aria-label="Filter predictions by league"
+    >
+      {TABS.map(({ key, labelKey, icon }) => {
         const isActive = activeLeague === key;
         return (
           <button
@@ -34,13 +39,18 @@ export default function LeagueFilterTabs({ activeLeague, onSelect }: LeagueFilte
             role="tab"
             aria-selected={isActive}
             onClick={() => onSelect(key)}
-            className={`shrink-0 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider border transition-all duration-150
+            className={`
+              shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold
+              uppercase tracking-wider border transition-all duration-150
               ${isActive
-                ? 'bg-[#00E676] text-black border-[#00E676]'
-                : 'bg-[#1a1a1a] text-[#666666] border-[#222222] hover:border-[#00E676] hover:text-[#f0f0f0]'
-              }`}
+                ? 'bg-[#00E676] text-black border-[#00E676] shadow-[0_0_16px_rgba(0,230,118,0.35)]'
+                : 'bg-[#161616] text-[#666666] border-[#252525] hover:border-[#00E676]/50 hover:text-[#cccccc]'
+              }
+            `}
           >
-            {t(labelKey)}
+            <span aria-hidden="true">{icon}</span>
+            {/* Strip the emoji from the translated label since we show it separately */}
+            {t(labelKey).replace(/^\p{Emoji_Presentation}\s*/u, '')}
           </button>
         );
       })}

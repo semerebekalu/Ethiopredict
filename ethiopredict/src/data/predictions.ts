@@ -1,5 +1,17 @@
 import type { Prediction } from '@/types';
 
+/**
+ * Today's predictions seed data.
+ * To update: edit this array. Each entry maps to one PredictionCard.
+ * Fields:
+ *   homeFlag / awayFlag — emoji flag or 2–3 letter initials for the team avatar
+ *   tipType             — market label shown on the badge (1X2, BTTS, Over 2.5, …)
+ *   tip                 — human-readable prediction text
+ *   affiliate           — tracked affiliate URL for the "Bet Now" button
+ */
+
+const ONEXBET = 'https://reffpa.com/L?tag=d_5554774m_97c_&site=5554774&ad=97';
+
 export const predictions: Prediction[] = [
   {
     id: 'pred-001',
@@ -8,12 +20,15 @@ export const predictions: Prediction[] = [
     time: 'Today 20:00',
     home: 'Arsenal',
     away: 'Man City',
+    homeFlag: '🔴',
+    awayFlag: '🔵',
     homeForm: ['w', 'w', 'd', 'w', 'w'],
     awayForm: ['w', 'l', 'w', 'w', 'd'],
+    tipType: 'Double Chance',
     tip: 'Arsenal Win or Draw',
     odds: '1.85',
     confidence: 72,
-    affiliate: '#',
+    affiliate: ONEXBET,
   },
   {
     id: 'pred-002',
@@ -22,12 +37,15 @@ export const predictions: Prediction[] = [
     time: 'Today 22:00',
     home: 'Real Madrid',
     away: 'Bayern Munich',
+    homeFlag: '⚪',
+    awayFlag: '🔴',
     homeForm: ['w', 'w', 'w', 'd', 'w'],
     awayForm: ['w', 'w', 'l', 'w', 'w'],
+    tipType: 'BTTS',
     tip: 'Both Teams to Score',
     odds: '1.65',
     confidence: 80,
-    affiliate: '#',
+    affiliate: ONEXBET,
   },
   {
     id: 'pred-003',
@@ -36,12 +54,15 @@ export const predictions: Prediction[] = [
     time: 'Today 17:30',
     home: 'Liverpool',
     away: 'Chelsea',
+    homeFlag: '🔴',
+    awayFlag: '🔵',
     homeForm: ['w', 'w', 'w', 'w', 'd'],
     awayForm: ['w', 'd', 'w', 'l', 'w'],
+    tipType: '1X2',
     tip: 'Liverpool Win',
     odds: '1.55',
     confidence: 85,
-    affiliate: '#',
+    affiliate: ONEXBET,
   },
   {
     id: 'pred-004',
@@ -50,12 +71,15 @@ export const predictions: Prediction[] = [
     time: 'Tomorrow 15:00',
     home: 'Saint George',
     away: 'Fasil Kenema',
+    homeFlag: '🟡',
+    awayFlag: '🟢',
     homeForm: ['w', 'w', 'd', 'w', 'l'],
     awayForm: ['d', 'w', 'w', 'l', 'w'],
+    tipType: '1X2',
     tip: 'Saint George Win',
     odds: '2.10',
     confidence: 65,
-    affiliate: '#',
+    affiliate: ONEXBET,
   },
   {
     id: 'pred-005',
@@ -64,12 +88,15 @@ export const predictions: Prediction[] = [
     time: 'Tomorrow 21:00',
     home: 'Barcelona',
     away: 'Atletico Madrid',
+    homeFlag: '🔵',
+    awayFlag: '🔴',
     homeForm: ['w', 'w', 'w', 'd', 'w'],
     awayForm: ['w', 'l', 'w', 'w', 'd'],
+    tipType: 'Over 2.5',
     tip: 'Over 2.5 Goals',
     odds: '1.90',
     confidence: 70,
-    affiliate: '#',
+    affiliate: ONEXBET,
   },
   {
     id: 'pred-006',
@@ -78,12 +105,15 @@ export const predictions: Prediction[] = [
     time: 'Tomorrow 20:00',
     home: 'PSG',
     away: 'Inter Milan',
+    homeFlag: '🔵',
+    awayFlag: '⚫',
     homeForm: ['w', 'd', 'w', 'w', 'l'],
     awayForm: ['w', 'w', 'd', 'w', 'w'],
+    tipType: 'Under 2.5',
     tip: 'Under 2.5 Goals',
     odds: '2.00',
     confidence: 62,
-    affiliate: '#',
+    affiliate: ONEXBET,
   },
   {
     id: 'pred-007',
@@ -92,11 +122,14 @@ export const predictions: Prediction[] = [
     time: 'Today 16:00',
     home: 'Wolkite City',
     away: 'Adama City',
+    homeFlag: '🟢',
+    awayFlag: '🟠',
     homeForm: ['d', 'w', 'l', 'w', 'd'],
     awayForm: ['l', 'd', 'w', 'l', 'w'],
+    tipType: 'BTTS',
     tip: 'Both Teams to Score',
     odds: '2.30',
     confidence: 58,
-    affiliate: '#',
+    affiliate: ONEXBET,
   },
 ];
