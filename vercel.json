@@ -1,0 +1,6 @@
+{
+  "buildCommand": "cd ethiopredict && npm run build",
+  "outputDirectory": "ethiopredict/.next",
+  "installCommand": "cd ethiopredict && npm install",
+  "framework": "nextjs"
+}
