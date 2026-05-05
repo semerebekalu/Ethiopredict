@@ -40,9 +40,13 @@ from urllib.error import URLError, HTTPError
 # ─── Config ───────────────────────────────────────────────────────────────────
 
 LEAGUES = {
-    "epl":    {"espn": "eng.1",          "name": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League",   "key": "epl"},
-    "ucl":    {"espn": "uefa.champions", "name": "⭐ Champions League",   "key": "ucl"},
-    "laliga": {"espn": "esp.1",          "name": "🇪🇸 La Liga",           "key": "laliga"},
+    "epl":        {"espn": "eng.1",           "name": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League",      "key": "epl"},
+    "ucl":        {"espn": "uefa.champions",  "name": "⭐ Champions League",      "key": "ucl"},
+    "laliga":     {"espn": "esp.1",           "name": "🇪🇸 La Liga",              "key": "laliga"},
+    "bundesliga": {"espn": "ger.1",           "name": "🇩🇪 Bundesliga",           "key": "bundesliga"},
+    "seriea":     {"espn": "ita.1",           "name": "🇮🇹 Serie A",              "key": "seriea"},
+    "ligue1":     {"espn": "fra.1",           "name": "🇫🇷 Ligue 1",             "key": "ligue1"},
+    "uel":        {"espn": "uefa.europa",     "name": "🟠 Europa League",         "key": "uel"},
 }
 
 AFFILIATE = "https://reffpa.com/L?tag=d_5554774m_97c_&site=5554774&ad=97"
