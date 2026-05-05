@@ -25,6 +25,7 @@ import json
 import os
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import urlopen, Request
@@ -39,7 +40,7 @@ PRED_FILE = OUT_DIR / "predictions.ts"
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-1.5-flash:generateContent?key={key}"
+    "gemini-2.0-flash:generateContent?key={key}"
 )
 
 # Gradient classes for blog card thumbnails — cycles through these
@@ -65,18 +66,29 @@ LEAGUE_EMOJIS = {
 
 # ─── HTTP helper ──────────────────────────────────────────────────────────────
 
-def post_json(url: str, payload: dict) -> dict | None:
-    try:
-        body = json.dumps(payload).encode()
-        req = Request(url, data=body, headers={
-            "Content-Type": "application/json",
-            "User-Agent": "EthioPredict/1.0",
-        })
-        with urlopen(req, timeout=30) as r:
-            return json.loads(r.read())
-    except (URLError, HTTPError) as e:
-        print(f"  ⚠ HTTP error: {e}", file=sys.stderr)
-        return None
+def post_json(url: str, payload: dict, retries: int = 3) -> dict | None:
+    for attempt in range(retries):
+        try:
+            body = json.dumps(payload).encode()
+            req = Request(url, data=body, headers={
+                "Content-Type": "application/json",
+                "User-Agent": "EthioPredict/1.0",
+            })
+            with urlopen(req, timeout=30) as r:
+                return json.loads(r.read())
+        except HTTPError as e:
+            if e.code == 429:
+                wait = 10 * (attempt + 1)
+                print(f"  ⏳ Rate limited — waiting {wait}s before retry {attempt+1}/{retries}...", file=sys.stderr)
+                time.sleep(wait)
+            else:
+                print(f"  ⚠ HTTP error {e.code}: {e}", file=sys.stderr)
+                return None
+        except URLError as e:
+            print(f"  ⚠ URL error: {e}", file=sys.stderr)
+            return None
+    print("  ⚠ Max retries reached", file=sys.stderr)
+    return None
 
 # ─── Parse predictions.ts to extract match data ───────────────────────────────
 
@@ -241,6 +253,10 @@ def main():
 
         # Try AI generation, fall back to template
         article = generate_article(match) or template_article(match)
+
+        # Small delay between API calls to avoid rate limiting
+        if i < len(top_matches) - 1:
+            time.sleep(2)
 
         emoji, tag = LEAGUE_EMOJIS.get(league_key, ("⚽", "Football Analysis"))
         thumb_class = THUMB_CLASSES[i % len(THUMB_CLASSES)]
