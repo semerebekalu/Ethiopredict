@@ -2,6 +2,7 @@
 
 import { useLanguage } from '@/context/LanguageContext';
 import FormIndicator from '@/components/shared/FormIndicator';
+import ShareButtons from '@/components/shared/ShareButtons';
 import type { Prediction, TipType } from '@/types';
 
 interface PredictionCardProps {
@@ -150,6 +151,12 @@ export default function PredictionCard({ prediction }: PredictionCardProps) {
           </svg>
           {t('card.betNow')}
         </a>
+
+        {/* ── Share buttons ── */}
+        <ShareButtons
+          title={`${home} vs ${away} — ${tip}`}
+          url="https://ethiopredict.vercel.app/predictions"
+        />
 
       </div>
     </article>

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import AffiliateBanner from '@/components/shared/AffiliateBanner';
+import ShareButtons from '@/components/shared/ShareButtons';
 import { blogPosts } from '@/data/blog';
 import { affiliates } from '@/config/affiliates';
 
@@ -119,6 +120,12 @@ export default async function BlogArticlePage({ params }: Props) {
       <div className="mt-10">
         <AffiliateBanner config={affiliates} />
       </div>
+
+      {/* Share buttons */}
+      <ShareButtons
+        title={post.titleEn}
+        url={`https://ethiopredict.vercel.app/blog/${post.id}`}
+      />
     </article>
   );
 }

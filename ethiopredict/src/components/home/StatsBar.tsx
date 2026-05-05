@@ -2,15 +2,31 @@
 
 import { useLanguage } from '@/context/LanguageContext';
 import { predictions } from '@/data/predictions';
+import { results } from '@/data/results';
+import { computeStats } from '@/lib/stats';
 
 export default function StatsBar() {
   const { t } = useLanguage();
 
+  const { winRate, streak, streakType } = computeStats(results);
+
+  // Count today's predictions (those with "Today" in the time field)
+  const tipsToday = predictions.filter(p => p.time.includes('Today')).length || predictions.length;
+
+  // Streak badge: show if win streak >= 3
+  const streakLabel = streakType === 'win' && streak >= 3
+    ? `🔥 ${streak} Win Streak`
+    : '🇪🇹';
+
+  const streakStatLabel = streakType === 'win' && streak >= 3
+    ? 'Win Streak'
+    : t('stats.based');
+
   const stats = [
-    { num: '78%',                        label: t('stats.winRate') },
-    { num: '2.4K',                       label: t('stats.followers') },
-    { num: `${predictions.length}+`,     label: t('stats.tipsToday') },
-    { num: '🇪🇹',                         label: t('stats.based') },
+    { num: `${winRate}%`,        label: t('stats.winRate') },
+    { num: '12K+',               label: t('stats.followers') },
+    { num: `${tipsToday}+`,      label: t('stats.tipsToday') },
+    { num: streakLabel,          label: streakStatLabel },
   ];
 
   return (

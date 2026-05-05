@@ -2,6 +2,7 @@ import Hero from '@/components/home/Hero';
 import StatsBar from '@/components/home/StatsBar';
 import PredictionList from '@/components/predictions/PredictionList';
 import MatchList from '@/components/matches/MatchList';
+import LiveScoresWidget from '@/components/matches/LiveScoresWidget';
 import AffiliateWidget from '@/components/sidebar/AffiliateWidget';
 import StandingsWidget from '@/components/standings/StandingsWidget';
 import TelegramCard from '@/components/sidebar/TelegramCard';
@@ -14,6 +15,9 @@ export default function HomePage() {
       <StatsBar />
 
       <section className="max-w-6xl mx-auto px-4 py-8">
+        {/* Live scores widget */}
+        <LiveScoresWidget />
+
         {/* Section heading */}
         <h2 className="font-[family-name:var(--font-bebas)] text-2xl tracking-widest text-[#f0f0f0] mb-6 flex items-center gap-3">
           Today&apos;s Predictions

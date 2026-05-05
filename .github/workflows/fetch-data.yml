@@ -26,6 +26,12 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python ethiopredict/scripts/generate_analysis.py
 
+      - name: Post predictions to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+        run: python ethiopredict/scripts/post_to_telegram.py
+
       - name: Commit and push if data changed
         run: |
           git config user.name "EthioPredict Bot"
