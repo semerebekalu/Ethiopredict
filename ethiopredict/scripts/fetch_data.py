@@ -323,6 +323,8 @@ def fetch_predictions_and_matches(target_date: str) -> tuple[list[dict], list[di
                     "away": away_name,
                     "homeFlag": home_c["team"].get("abbreviation", "?"),
                     "awayFlag": away_c["team"].get("abbreviation", "?"),
+                    "homeLogoUrl": home_c["team"].get("logo", ""),
+                    "awayLogoUrl": away_c["team"].get("logo", ""),
                     "homeForm": home_form,
                     "awayForm": away_form,
                     "tipType": pred["tipType"],
@@ -433,7 +435,7 @@ def fetch_standings() -> list[dict]:
 # ─── TypeScript writers ───────────────────────────────────────────────────────
 
 def ts_str(v) -> str:
-    return json.dumps(v)
+    return json.dumps(v, ensure_ascii=False)
 
 def write_predictions(predictions: list[dict]):
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")

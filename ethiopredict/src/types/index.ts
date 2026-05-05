@@ -62,10 +62,16 @@ export interface BlogPost {
   titleAm: string;
   excerptEn: string;
   excerptAm: string;
+  bodyEn: string;      // full article body in English
+  bodyAm: string;      // full article body in Amharic
   date: string;
   readTime: string;
   thumbEmoji: string;
-  thumbClass: string; // Tailwind gradient class
+  thumbClass: string;  // Tailwind gradient class
+  homeTeam?: string;
+  awayTeam?: string;
+  homeLogoUrl?: string; // ESPN CDN team logo URL
+  awayLogoUrl?: string;
 }
 
 export interface AffiliateConfig {

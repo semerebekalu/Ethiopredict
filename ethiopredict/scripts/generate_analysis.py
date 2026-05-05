@@ -2,23 +2,13 @@
 """
 EthioPredict AI Analysis Generator — uses Google Gemini free API.
 
-What it does:
-  1. Reads today's auto-generated predictions from src/data/predictions.ts
-  2. Picks the top 6 matches by confidence score
-  3. For each match, calls Gemini to write a short match analysis article
-     in both English and Amharic
-  4. Writes updated src/data/blog.ts
-
 Setup:
   1. Get a free Gemini API key at https://aistudio.google.com/app/apikey
-  2. Add to ethiopredict/.env.local:
-       GEMINI_API_KEY=your_key_here
-  3. Also add to Vercel environment variables (for production)
+  2. Add to ethiopredict/.env.local:  GEMINI_API_KEY=your_key_here
+  3. Add to GitHub Secrets as GEMINI_API_KEY for the daily Action
 
 Run manually:
   python scripts/generate_analysis.py
-
-The GitHub Action runs this automatically after fetch_data.py each morning.
 """
 
 import json
@@ -43,7 +33,6 @@ GEMINI_URL = (
     "gemini-2.0-flash:generateContent?key={key}"
 )
 
-# Gradient classes for blog card thumbnails — cycles through these
 THUMB_CLASSES = [
     "from-purple-900 to-purple-600",
     "from-blue-900 to-blue-600",
@@ -64,7 +53,11 @@ LEAGUE_EMOJIS = {
     "eth":        ("🇪🇹", "Ethiopian Premier League"),
 }
 
-# ─── HTTP helper ──────────────────────────────────────────────────────────────
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+
+def ts_str(v: str) -> str:
+    """Serialize string to JSON with proper unicode (no escape sequences)."""
+    return json.dumps(v, ensure_ascii=False)
 
 def post_json(url: str, payload: dict, retries: int = 3) -> dict | None:
     for attempt in range(retries):
@@ -78,11 +71,11 @@ def post_json(url: str, payload: dict, retries: int = 3) -> dict | None:
                 return json.loads(r.read())
         except HTTPError as e:
             if e.code == 429:
-                wait = 10 * (attempt + 1)
-                print(f"  ⏳ Rate limited — waiting {wait}s before retry {attempt+1}/{retries}...", file=sys.stderr)
+                wait = 15 * (attempt + 1)
+                print(f"  ⏳ Rate limited — waiting {wait}s (retry {attempt+1}/{retries})...", file=sys.stderr)
                 time.sleep(wait)
             else:
-                print(f"  ⚠ HTTP error {e.code}: {e}", file=sys.stderr)
+                print(f"  ⚠ HTTP {e.code}: {e}", file=sys.stderr)
                 return None
         except URLError as e:
             print(f"  ⚠ URL error: {e}", file=sys.stderr)
@@ -90,21 +83,18 @@ def post_json(url: str, payload: dict, retries: int = 3) -> dict | None:
     print("  ⚠ Max retries reached", file=sys.stderr)
     return None
 
-# ─── Parse predictions.ts to extract match data ───────────────────────────────
+# ─── Parse predictions.ts ─────────────────────────────────────────────────────
 
 def load_predictions() -> list[dict]:
     if not PRED_FILE.exists():
         return []
-
     content = PRED_FILE.read_text(encoding="utf-8")
-
-    # Extract each prediction object using regex
     predictions = []
     blocks = re.findall(r'\{[^{}]+\}', content, re.DOTALL)
-
     for block in blocks:
         pred = {}
-        for key in ["id", "league", "leagueName", "home", "away", "tip", "tipType", "odds", "confidence"]:
+        for key in ["id", "league", "leagueName", "home", "away", "tip", "tipType", "odds", "confidence",
+                    "homeLogoUrl", "awayLogoUrl"]:
             m = re.search(rf'{key}:\s*(["\d][^,\n]+)', block)
             if m:
                 val = m.group(1).strip().strip('"').strip("'").rstrip(',')
@@ -115,107 +105,117 @@ def load_predictions() -> list[dict]:
                         pred[key] = 0
                 else:
                     pred[key] = val
-
+        # Parse form arrays
+        for fkey in ["homeForm", "awayForm"]:
+            fm = re.search(rf'{fkey}:\s*\[([^\]]+)\]', block)
+            if fm:
+                pred[fkey] = [v.strip().strip('"') for v in fm.group(1).split(',')]
         if pred.get("home") and pred.get("away"):
             predictions.append(pred)
-
     return predictions
 
-# ─── Gemini API call ──────────────────────────────────────────────────────────
+# ─── Gemini API ───────────────────────────────────────────────────────────────
 
 def generate_article(match: dict) -> dict | None:
-    """
-    Returns {"titleEn", "titleAm", "excerptEn", "excerptAm"} or None on failure.
-    """
     if not GEMINI_API_KEY:
-        print("  ⚠ GEMINI_API_KEY not set — using template fallback", file=sys.stderr)
         return None
 
-    home = match.get("home", "")
-    away = match.get("away", "")
-    league = match.get("leagueName", "")
-    tip = match.get("tip", "")
-    tip_type = match.get("tipType", "")
-    odds = match.get("odds", "")
+    home       = match.get("home", "")
+    away       = match.get("away", "")
+    league     = match.get("leagueName", "")
+    tip        = match.get("tip", "")
+    tip_type   = match.get("tipType", "")
+    odds       = match.get("odds", "")
     confidence = match.get("confidence", 0)
 
-    prompt = f"""You are a football analyst writing for EthioPredict, an Ethiopian football prediction website.
+    prompt = f"""You are a football analyst for EthioPredict, an Ethiopian football tips website.
 
-Write a short match preview for: {home} vs {away} ({league})
+Match: {home} vs {away} ({league})
+Our tip: {tip} ({tip_type}) @ {odds} odds — {confidence}% confidence
 
-Our prediction: {tip} ({tip_type}) @ {odds} odds — {confidence}% confidence
+Write in plain text only (no markdown symbols, no unicode escapes):
+1. English title (max 10 words)
+2. English excerpt (2 sentences)
+3. English article body (3 paragraphs: team form, head-to-head, our prediction reasoning)
+4. Amharic title
+5. Amharic excerpt
+6. Amharic article body
 
-Write TWO things:
-1. A punchy English title (max 10 words, no quotes)
-2. An English excerpt (2-3 sentences, mention form, key players or tactical angle, and our tip)
-3. An Amharic title (translation of the English title)
-4. An Amharic excerpt (translation of the English excerpt)
-
-Format your response EXACTLY like this (no extra text):
-TITLE_EN: [title here]
-EXCERPT_EN: [excerpt here]
-TITLE_AM: [amharic title]
-EXCERPT_AM: [amharic excerpt]"""
+Use this EXACT format:
+TITLE_EN: [title]
+EXCERPT_EN: [excerpt]
+BODY_EN: [body]
+TITLE_AM: [title]
+EXCERPT_AM: [excerpt]
+BODY_AM: [body]"""
 
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.7,
-            "maxOutputTokens": 400,
-        }
+        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 600},
     }
 
-    url = GEMINI_URL.format(key=GEMINI_API_KEY)
-    response = post_json(url, payload)
-
-    if not response:
+    resp = post_json(GEMINI_URL.format(key=GEMINI_API_KEY), payload)
+    if not resp:
         return None
 
     try:
-        text = response["candidates"][0]["content"]["parts"][0]["text"]
-
-        title_en  = re.search(r'TITLE_EN:\s*(.+)', text)
-        excerpt_en = re.search(r'EXCERPT_EN:\s*(.+)', text)
-        title_am  = re.search(r'TITLE_AM:\s*(.+)', text)
-        excerpt_am = re.search(r'EXCERPT_AM:\s*(.+)', text)
-
-        if not all([title_en, excerpt_en, title_am, excerpt_am]):
-            print(f"  ⚠ Unexpected Gemini response format for {home} vs {away}", file=sys.stderr)
-            return None
+        text = resp["candidates"][0]["content"]["parts"][0]["text"]
+        def extract(pattern):
+            m = re.search(pattern, text, re.DOTALL)
+            return m.group(1).strip() if m else ""
 
         return {
-            "titleEn":   title_en.group(1).strip(),
-            "excerptEn": excerpt_en.group(1).strip(),
-            "titleAm":   title_am.group(1).strip(),
-            "excerptAm": excerpt_am.group(1).strip(),
+            "titleEn":   extract(r'TITLE_EN:\s*(.+)'),
+            "excerptEn": extract(r'EXCERPT_EN:\s*(.+)'),
+            "bodyEn":    extract(r'BODY_EN:\s*([\s\S]+?)(?=TITLE_AM:|$)'),
+            "titleAm":   extract(r'TITLE_AM:\s*(.+)'),
+            "excerptAm": extract(r'EXCERPT_AM:\s*(.+)'),
+            "bodyAm":    extract(r'BODY_AM:\s*([\s\S]+?)$'),
         }
     except (KeyError, IndexError) as e:
         print(f"  ⚠ Parse error: {e}", file=sys.stderr)
         return None
 
-# ─── Template fallback (when no API key) ─────────────────────────────────────
+# ─── Template fallback ────────────────────────────────────────────────────────
 
 def template_article(match: dict) -> dict:
-    home = match.get("home", "Home")
-    away = match.get("away", "Away")
-    league = match.get("leagueName", "")
-    tip = match.get("tip", "")
-    odds = match.get("odds", "")
+    home       = match.get("home", "Home")
+    away       = match.get("away", "Away")
+    league     = match.get("leagueName", "")
+    tip        = match.get("tip", "")
+    odds       = match.get("odds", "")
     confidence = match.get("confidence", 0)
+    home_form  = match.get("homeForm", [])
+    away_form  = match.get("awayForm", [])
+
+    form_map = {"w": "W", "d": "D", "l": "L"}
+    hf = " ".join(form_map.get(f, "?") for f in home_form[-5:])
+    af = " ".join(form_map.get(f, "?") for f in away_form[-5:])
+
+    body_en = (
+        f"{home} take on {away} in what promises to be an exciting {league} clash. "
+        f"Recent form shows {home} going {hf} while {away} have recorded {af} in their last five outings.\n\n"
+        f"Head-to-head records and current form both point towards an interesting contest. "
+        f"Both sides have shown quality in recent weeks and this match could go either way.\n\n"
+        f"Our analysts back {tip} at odds of {odds}. Confidence level: {confidence}%. "
+        f"Place your bet on 1xBet or Melbet for the best available odds. Always bet responsibly."
+    )
+
+    body_am = (
+        f"{home} እና {away} በ{league} ጨዋታ ይፋለማሉ። "
+        f"የቅርብ ቅርፅ {home} {hf} ሲሆን {away} ደግሞ {af} ነው።\n\n"
+        f"ፊት ለፊት ሪከርድ እና የቅርብ ቅርፅ ሁለቱም ወደ አስደሳች ጨዋታ ያመለክታሉ።\n\n"
+        f"ምክራችን {tip} በ{odds} ኦድስ ነው። የእምነት ደረጃ: {confidence}%። "
+        f"ለምርጥ ኦድስ በ1xBet ወይም Melbet ላይ ቁማርዎን ይጫወቱ። ሁልጊዜ በኃላፊነት ይወርቁ።"
+    )
 
     return {
         "titleEn":   f"{home} vs {away}: Match Preview & Prediction",
-        "excerptEn": (
-            f"{home} host {away} in {league} today. "
-            f"Based on recent form and head-to-head analysis, our tip is {tip} at {odds} odds. "
-            f"Confidence level: {confidence}%."
-        ),
+        "excerptEn": f"{home} host {away} in {league}. Our tip is {tip} at {odds} odds ({confidence}% confidence).",
+        "bodyEn":    body_en,
         "titleAm":   f"{home} vs {away}: የጨዋታ ቅድመ-ዕይታ እና ትንበያ",
-        "excerptAm": (
-            f"{home} ዛሬ {away}ን በ{league} ያስተናግዳሉ። "
-            f"በቅርብ ቅርፅ እና ፊት ለፊት ትንተና ላይ በመመስረት ምክራችን {tip} በ{odds} ኦድስ ነው። "
-            f"የእምነት ደረጃ: {confidence}%።"
-        ),
+        "excerptAm": f"{home} ዛሬ {away}ን ያስተናግዳሉ። ምክራችን {tip} በ{odds} ኦድስ ({confidence}% እምነት)።",
+        "bodyAm":    body_am,
     }
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -224,90 +224,88 @@ def main():
     print(f"\n✍️  EthioPredict analysis generator — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n")
 
     if not GEMINI_API_KEY:
-        print("⚠️  GEMINI_API_KEY not set. Add it to .env.local to enable AI generation.")
-        print("   Using template fallback for now.\n")
+        print("⚠️  GEMINI_API_KEY not set — using template fallback.\n")
 
-    # Load today's predictions
     predictions = load_predictions()
     if not predictions:
         print("  ⚠ No predictions found — run fetch_data.py first")
         return
 
     print(f"  Found {len(predictions)} predictions")
-
-    # Sort by confidence, pick top 6
     top_matches = sorted(predictions, key=lambda p: p.get("confidence", 0), reverse=True)[:6]
     print(f"  Generating analysis for top {len(top_matches)} matches...\n")
 
-    today = datetime.now(timezone.utc)
-    date_str = today.strftime("%b %-d, %Y") if sys.platform != "win32" else today.strftime("%b %d, %Y").replace(" 0", " ")
+    today    = datetime.now(timezone.utc)
+    date_str = today.strftime("%b %d, %Y").lstrip("0").replace(" 0", " ")
 
     blog_posts = []
     for i, match in enumerate(top_matches):
-        home = match.get("home", "")
-        away = match.get("away", "")
+        home       = match.get("home", "")
+        away       = match.get("away", "")
         league_key = match.get("league", "epl")
         confidence = match.get("confidence", 0)
 
-        print(f"  [{i+1}/{len(top_matches)}] {home} vs {away} ({confidence}% confidence)...")
+        print(f"  [{i+1}/{len(top_matches)}] {home} vs {away} ({confidence}%)...")
 
-        # Try AI generation, fall back to template
         article = generate_article(match) or template_article(match)
 
-        # Small delay between API calls to avoid rate limiting
         if i < len(top_matches) - 1:
             time.sleep(2)
 
-        emoji, tag = LEAGUE_EMOJIS.get(league_key, ("⚽", "Football Analysis"))
-        thumb_class = THUMB_CLASSES[i % len(THUMB_CLASSES)]
-
-        # Estimate read time (roughly 200 words per minute, ~150 word article)
-        read_time = "4 min read"
+        emoji, tag   = LEAGUE_EMOJIS.get(league_key, ("⚽", "Football Analysis"))
+        thumb_class  = THUMB_CLASSES[i % len(THUMB_CLASSES)]
 
         blog_posts.append({
-            "id": f"blog-{today.strftime('%Y%m%d')}-{i+1:02d}",
-            "tag": tag,
-            "titleEn": article["titleEn"],
-            "titleAm": article["titleAm"],
-            "excerptEn": article["excerptEn"],
-            "excerptAm": article["excerptAm"],
-            "date": date_str,
-            "readTime": read_time,
-            "thumbEmoji": emoji,
-            "thumbClass": thumb_class,
+            "id":          f"blog-{today.strftime('%Y%m%d')}-{i+1:02d}",
+            "tag":         tag,
+            "titleEn":     article["titleEn"],
+            "titleAm":     article["titleAm"],
+            "excerptEn":   article["excerptEn"],
+            "excerptAm":   article["excerptAm"],
+            "bodyEn":      article.get("bodyEn", article["excerptEn"]),
+            "bodyAm":      article.get("bodyAm", article["excerptAm"]),
+            "date":        date_str,
+            "readTime":    "4 min read",
+            "thumbEmoji":  emoji,
+            "thumbClass":  thumb_class,
+            "homeTeam":    home,
+            "awayTeam":    away,
+            "homeLogoUrl": match.get("homeLogoUrl", ""),
+            "awayLogoUrl": match.get("awayLogoUrl", ""),
         })
 
     # Write blog.ts
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
-        f"// AUTO-GENERATED by scripts/generate_analysis.py — {ts}",
-        "// Articles generated by Google Gemini based on today's top predictions",
+        f"// AUTO-GENERATED by scripts/generate_analysis.py — {now_str}",
         "import type { BlogPost } from '@/types';",
         "",
         "export const blogPosts: BlogPost[] = [",
     ]
-
     for post in blog_posts:
         lines += [
             "  {",
-            f"    id: {json.dumps(post['id'])},",
-            f"    tag: {json.dumps(post['tag'])},",
-            f"    titleEn: {json.dumps(post['titleEn'])},",
-            f"    titleAm: {json.dumps(post['titleAm'])},",
-            f"    excerptEn: {json.dumps(post['excerptEn'])},",
-            f"    excerptAm: {json.dumps(post['excerptAm'])},",
-            f"    date: {json.dumps(post['date'])},",
-            f"    readTime: {json.dumps(post['readTime'])},",
-            f"    thumbEmoji: {json.dumps(post['thumbEmoji'])},",
-            f"    thumbClass: {json.dumps(post['thumbClass'])},",
+            f"    id: {ts_str(post['id'])},",
+            f"    tag: {ts_str(post['tag'])},",
+            f"    titleEn: {ts_str(post['titleEn'])},",
+            f"    titleAm: {ts_str(post['titleAm'])},",
+            f"    excerptEn: {ts_str(post['excerptEn'])},",
+            f"    excerptAm: {ts_str(post['excerptAm'])},",
+            f"    bodyEn: {ts_str(post['bodyEn'])},",
+            f"    bodyAm: {ts_str(post['bodyAm'])},",
+            f"    date: {ts_str(post['date'])},",
+            f"    readTime: {ts_str(post['readTime'])},",
+            f"    thumbEmoji: {ts_str(post['thumbEmoji'])},",
+            f"    thumbClass: {ts_str(post['thumbClass'])},",
+            f"    homeTeam: {ts_str(post['homeTeam'])},",
+            f"    awayTeam: {ts_str(post['awayTeam'])},",
+            f"    homeLogoUrl: {ts_str(post['homeLogoUrl'])},",
+            f"    awayLogoUrl: {ts_str(post['awayLogoUrl'])},",
             "  },",
         ]
-
-    lines.append("];")
-    lines.append("")
-
+    lines += ["];", ""]
     BLOG_FILE.write_text("\n".join(lines), encoding="utf-8")
-    print(f"\n  ✓ blog.ts — {len(blog_posts)} articles written")
+    print(f"\n  ✓ blog.ts — {len(blog_posts)} articles")
     print("\n✅ Done!\n")
 
 if __name__ == "__main__":
