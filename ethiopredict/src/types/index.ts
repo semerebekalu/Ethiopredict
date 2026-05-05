@@ -1,7 +1,7 @@
 export type FormResult = 'w' | 'd' | 'l';
 export type Outcome = 'win' | 'loss' | 'void';
 export type MatchStatus = 'live' | 'upcoming';
-export type LeagueKey = 'epl' | 'ucl' | 'eth' | 'laliga' | 'all';
+export type LeagueKey = 'epl' | 'ucl' | 'eth' | 'laliga' | 'bundesliga' | 'seriea' | 'ligue1' | 'uel' | 'all';
 
 /** Short label shown on the tip badge, e.g. "1X2", "BTTS", "Over 2.5" */
 export type TipType = '1X2' | 'BTTS' | 'Over 2.5' | 'Under 2.5' | 'Double Chance' | 'Draw No Bet' | 'Asian Handicap' | string;

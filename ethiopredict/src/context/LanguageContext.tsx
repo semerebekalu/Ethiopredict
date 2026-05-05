@@ -61,6 +61,10 @@ const translations: Record<Lang, Record<string, string>> = {
     'filter.ucl': '⭐ UCL',
     'filter.eth': '🇪🇹 Ethiopia',
     'filter.laliga': '🇪🇸 La Liga',
+    'filter.bundesliga': '🇩🇪 Bundesliga',
+    'filter.seriea': '🇮🇹 Serie A',
+    'filter.ligue1': '🇫🇷 Ligue 1',
+    'filter.uel': '🟠 Europa',
 
     // Prediction card
     'card.ourTip': 'Our Tip',
@@ -169,6 +173,10 @@ const translations: Record<Lang, Record<string, string>> = {
     'filter.ucl': '⭐ UCL',
     'filter.eth': '🇪🇹 ኢትዮጵያ',
     'filter.laliga': '🇪🇸 La Liga',
+    'filter.bundesliga': '🇩🇪 Bundesliga',
+    'filter.seriea': '🇮🇹 Serie A',
+    'filter.ligue1': '🇫🇷 Ligue 1',
+    'filter.uel': '🟠 Europa',
 
     // Prediction card
     'card.ourTip': 'ምክር',

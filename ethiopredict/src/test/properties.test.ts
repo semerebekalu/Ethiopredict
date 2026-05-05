@@ -5,7 +5,7 @@ import type { Prediction, Result, LeagueKey } from '@/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const leagueKeys: LeagueKey[] = ['epl', 'ucl', 'eth', 'laliga'];
+const leagueKeys: LeagueKey[] = ['epl', 'ucl', 'eth', 'laliga', 'bundesliga', 'seriea', 'ligue1', 'uel'];
 
 const arbLeagueKey = fc.constantFrom(...leagueKeys);
 

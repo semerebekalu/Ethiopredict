@@ -5,16 +5,20 @@ import type { LeagueKey } from '@/types';
 
 interface Tab {
   key: LeagueKey;
-  labelKey: string;
+  label: string;
   icon: string;
 }
 
 const TABS: Tab[] = [
-  { key: 'all',    labelKey: 'filter.all',    icon: '⚽' },
-  { key: 'epl',    labelKey: 'filter.epl',    icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-  { key: 'ucl',    labelKey: 'filter.ucl',    icon: '⭐' },
-  { key: 'eth',    labelKey: 'filter.eth',    icon: '🇪🇹' },
-  { key: 'laliga', labelKey: 'filter.laliga', icon: '🇪🇸' },
+  { key: 'all',        label: 'All',         icon: '⚽' },
+  { key: 'epl',        label: 'EPL',         icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+  { key: 'ucl',        label: 'UCL',         icon: '⭐' },
+  { key: 'eth',        label: 'Ethiopia',    icon: '🇪🇹' },
+  { key: 'laliga',     label: 'La Liga',     icon: '🇪🇸' },
+  { key: 'bundesliga', label: 'Bundesliga',  icon: '🇩🇪' },
+  { key: 'seriea',     label: 'Serie A',     icon: '🇮🇹' },
+  { key: 'ligue1',     label: 'Ligue 1',     icon: '🇫🇷' },
+  { key: 'uel',        label: 'Europa',      icon: '🟠' },
 ];
 
 interface LeagueFilterTabsProps {
@@ -23,15 +27,13 @@ interface LeagueFilterTabsProps {
 }
 
 export default function LeagueFilterTabs({ activeLeague, onSelect }: LeagueFilterTabsProps) {
-  const { t } = useLanguage();
-
   return (
     <div
       className="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-none"
       role="tablist"
       aria-label="Filter predictions by league"
     >
-      {TABS.map(({ key, labelKey, icon }) => {
+      {TABS.map(({ key, label, icon }) => {
         const isActive = activeLeague === key;
         return (
           <button
@@ -49,8 +51,7 @@ export default function LeagueFilterTabs({ activeLeague, onSelect }: LeagueFilte
             `}
           >
             <span aria-hidden="true">{icon}</span>
-            {/* Strip the emoji from the translated label since we show it separately */}
-            {t(labelKey).replace(/^\p{Emoji_Presentation}\s*/u, '')}
+            {label}
           </button>
         );
       })}
