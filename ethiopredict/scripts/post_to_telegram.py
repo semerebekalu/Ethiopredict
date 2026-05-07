@@ -12,8 +12,13 @@ from pathlib import Path
 from urllib.request import urlopen, Request
 from urllib.error import URLError
 
-BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-CHANNEL_ID = os.environ.get("TELEGRAM_CHANNEL_ID", "")
+BOT_TOKEN  = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+CHANNEL_ID_RAW = os.environ.get("TELEGRAM_CHANNEL_ID", "")
+# Add @ prefix if it's a username without it, unless it's a numeric ID
+if CHANNEL_ID_RAW and not CHANNEL_ID_RAW.startswith("@") and not CHANNEL_ID_RAW.startswith("-"):
+    CHANNEL_ID = f"@{CHANNEL_ID_RAW}"
+else:
+    CHANNEL_ID = CHANNEL_ID_RAW
 PRED_FILE = Path(__file__).parent.parent / "src" / "data" / "predictions.ts"
 AFFILIATE = "https://reffpa.com/L?tag=d_5554774m_97c_&site=5554774&ad=97"
 
