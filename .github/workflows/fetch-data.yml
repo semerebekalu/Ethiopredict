@@ -6,12 +6,17 @@ on:
     - cron: '0 6 * * *'
   workflow_dispatch: # allow manual trigger from GitHub UI
 
+permissions:
+  contents: write  # needed to push data file updates back to repo
+
 jobs:
   fetch:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
