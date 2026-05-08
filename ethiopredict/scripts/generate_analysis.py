@@ -29,7 +29,7 @@ PRED_FILE = OUT_DIR / "predictions.ts"
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL   = "llama3-8b-8192"
+GROQ_MODEL   = "llama-3.1-8b-instant"
 
 THUMB_CLASSES = [
     "from-purple-900 to-purple-600",
@@ -72,13 +72,18 @@ def call_groq(prompt: str) -> str | None:
         req = Request(GROQ_URL, data=body, headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {GROQ_API_KEY}",
+            "User-Agent": "Mozilla/5.0 (compatible; EthioPredict/1.0)",
+            "Accept": "application/json",
         })
         with urlopen(req, timeout=30) as r:
             data = json.loads(r.read())
             return data["choices"][0]["message"]["content"]
     except HTTPError as e:
-        body_text = e.read().decode() if hasattr(e, 'read') else ''
-        print(f"  ⚠ Groq HTTP {e.code}: {body_text[:200]}", file=sys.stderr)
+        try:
+            body_text = e.read().decode()
+        except Exception:
+            body_text = str(e)
+        print(f"  ⚠ Groq HTTP {e.code}: {body_text[:300]}", file=sys.stderr)
         return None
     except Exception as e:
         print(f"  ⚠ Groq error: {e}", file=sys.stderr)
