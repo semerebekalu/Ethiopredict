@@ -12,8 +12,8 @@ from pathlib import Path
 from urllib.request import urlopen, Request
 from urllib.error import URLError
 
-BOT_TOKEN  = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-CHANNEL_ID_RAW = os.environ.get("TELEGRAM_CHANNEL_ID", "")
+BOT_TOKEN  = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+CHANNEL_ID_RAW = os.environ.get("TELEGRAM_CHANNEL_ID", "").strip()
 # Add @ prefix if it's a username without it, unless it's a numeric ID
 if CHANNEL_ID_RAW and not CHANNEL_ID_RAW.startswith("@") and not CHANNEL_ID_RAW.startswith("-"):
     CHANNEL_ID = f"@{CHANNEL_ID_RAW}"
