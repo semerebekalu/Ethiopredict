@@ -28,6 +28,10 @@ BLOG_FILE = OUT_DIR / "blog.ts"
 PRED_FILE = OUT_DIR / "predictions.ts"
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GROQ_API_KEY   = os.environ.get("GROQ_API_KEY", "")
+
+# Use Groq if available (faster, higher free limits), fall back to Gemini
+GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions"
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
     "gemini-2.0-flash:generateContent?key={key}"
@@ -116,8 +120,66 @@ def load_predictions() -> list[dict]:
 
 # ─── Gemini API ───────────────────────────────────────────────────────────────
 
-def generate_article(match: dict) -> dict | None:
+def call_groq(prompt: str) -> str | None:
+    """Call Groq API (OpenAI-compatible). Returns text or None."""
+    if not GROQ_API_KEY:
+        return None
+    payload = {
+        "model": "llama3-8b-8192",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.7,
+        "max_tokens": 600,
+    }
+    try:
+        body = json.dumps(payload).encode()
+        req = Request(GROQ_URL, data=body, headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+        })
+        with urlopen(req, timeout=30) as r:
+            data = json.loads(r.read())
+            return data["choices"][0]["message"]["content"]
+    except HTTPError as e:
+        print(f"  ⚠ Groq HTTP {e.code}: {e}", file=sys.stderr)
+        return None
+    except Exception as e:
+        print(f"  ⚠ Groq error: {e}", file=sys.stderr)
+        return None
+
+
+def call_gemini(prompt: str) -> str | None:
+    """Call Gemini API with retry on rate limit. Returns text or None."""
     if not GEMINI_API_KEY:
+        return None
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 600},
+    }
+    for attempt in range(3):
+        try:
+            body = json.dumps(payload).encode()
+            req = Request(GEMINI_URL.format(key=GEMINI_API_KEY), data=body, headers={
+                "Content-Type": "application/json",
+            })
+            with urlopen(req, timeout=30) as r:
+                data = json.loads(r.read())
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+        except HTTPError as e:
+            if e.code == 429:
+                wait = 15 * (attempt + 1)
+                print(f"  ⏳ Gemini rate limited — waiting {wait}s (retry {attempt+1}/3)...", file=sys.stderr)
+                time.sleep(wait)
+            else:
+                print(f"  ⚠ Gemini HTTP {e.code}", file=sys.stderr)
+                return None
+        except Exception as e:
+            print(f"  ⚠ Gemini error: {e}", file=sys.stderr)
+            return None
+    return None
+
+
+def generate_article(match: dict) -> dict | None:
+    if not GROQ_API_KEY and not GEMINI_API_KEY:
         return None
 
     home       = match.get("home", "")
@@ -149,32 +211,34 @@ TITLE_AM: [title]
 EXCERPT_AM: [excerpt]
 BODY_AM: [body]"""
 
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 600},
+    # Try Groq first (faster, higher limits), fall back to Gemini
+    if GROQ_API_KEY:
+        print(f"    Using Groq...", file=sys.stderr)
+        text = call_groq(prompt)
+    else:
+        print(f"    Using Gemini...", file=sys.stderr)
+        text = call_gemini(prompt)
+
+    # If primary failed, try the other
+    if not text and GEMINI_API_KEY:
+        print(f"    Groq failed, trying Gemini...", file=sys.stderr)
+        text = call_gemini(prompt)
+
+    if not text:
+        return None
+
+    def extract(pattern):
+        m = re.search(pattern, text, re.DOTALL)
+        return m.group(1).strip() if m else ""
+
+    return {
+        "titleEn":   extract(r'TITLE_EN:\s*(.+)'),
+        "excerptEn": extract(r'EXCERPT_EN:\s*(.+)'),
+        "bodyEn":    extract(r'BODY_EN:\s*([\s\S]+?)(?=TITLE_AM:|$)'),
+        "titleAm":   extract(r'TITLE_AM:\s*(.+)'),
+        "excerptAm": extract(r'EXCERPT_AM:\s*(.+)'),
+        "bodyAm":    extract(r'BODY_AM:\s*([\s\S]+?)$'),
     }
-
-    resp = post_json(GEMINI_URL.format(key=GEMINI_API_KEY), payload)
-    if not resp:
-        return None
-
-    try:
-        text = resp["candidates"][0]["content"]["parts"][0]["text"]
-        def extract(pattern):
-            m = re.search(pattern, text, re.DOTALL)
-            return m.group(1).strip() if m else ""
-
-        return {
-            "titleEn":   extract(r'TITLE_EN:\s*(.+)'),
-            "excerptEn": extract(r'EXCERPT_EN:\s*(.+)'),
-            "bodyEn":    extract(r'BODY_EN:\s*([\s\S]+?)(?=TITLE_AM:|$)'),
-            "titleAm":   extract(r'TITLE_AM:\s*(.+)'),
-            "excerptAm": extract(r'EXCERPT_AM:\s*(.+)'),
-            "bodyAm":    extract(r'BODY_AM:\s*([\s\S]+?)$'),
-        }
-    except (KeyError, IndexError) as e:
-        print(f"  ⚠ Parse error: {e}", file=sys.stderr)
-        return None
 
 # ─── Template fallback ────────────────────────────────────────────────────────
 
@@ -223,8 +287,8 @@ def template_article(match: dict) -> dict:
 def main():
     print(f"\n✍️  EthioPredict analysis generator — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n")
 
-    if not GEMINI_API_KEY:
-        print("⚠️  GEMINI_API_KEY not set — using template fallback.\n")
+    if not GROQ_API_KEY and not GEMINI_API_KEY:
+        print("⚠️  No AI key set — using template fallback.\n")
 
     predictions = load_predictions()
     if not predictions:
