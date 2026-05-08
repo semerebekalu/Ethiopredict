@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-EthioPredict AI Analysis Generator — uses Google Gemini free API.
+EthioPredict AI Analysis Generator — uses Groq (Llama3, free tier).
 
 Setup:
-  1. Get a free Gemini API key at https://aistudio.google.com/app/apikey
-  2. Add to ethiopredict/.env.local:  GEMINI_API_KEY=your_key_here
-  3. Add to GitHub Secrets as GEMINI_API_KEY for the daily Action
+  1. Get a free Groq API key at https://console.groq.com
+  2. Add to ethiopredict/.env.local:  GROQ_API_KEY=your_key_here
+  3. Add to GitHub Secrets as GROQ_API_KEY for the daily Action
 
 Run manually:
   python scripts/generate_analysis.py
@@ -27,15 +27,9 @@ OUT_DIR   = Path(__file__).parent.parent / "src" / "data"
 BLOG_FILE = OUT_DIR / "blog.ts"
 PRED_FILE = OUT_DIR / "predictions.ts"
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GROQ_API_KEY   = os.environ.get("GROQ_API_KEY", "")
-
-# Use Groq if available (faster, higher free limits), fall back to Gemini
-GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions"
-GEMINI_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-2.0-flash:generateContent?key={key}"
-)
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL   = "llama3-8b-8192"
 
 THUMB_CLASSES = [
     "from-purple-900 to-purple-600",
@@ -60,75 +54,18 @@ LEAGUE_EMOJIS = {
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def ts_str(v: str) -> str:
-    """Serialize string to JSON with proper unicode (no escape sequences)."""
     return json.dumps(v, ensure_ascii=False)
 
-def post_json(url: str, payload: dict, retries: int = 3) -> dict | None:
-    for attempt in range(retries):
-        try:
-            body = json.dumps(payload).encode()
-            req = Request(url, data=body, headers={
-                "Content-Type": "application/json",
-                "User-Agent": "EthioPredict/1.0",
-            })
-            with urlopen(req, timeout=30) as r:
-                return json.loads(r.read())
-        except HTTPError as e:
-            if e.code == 429:
-                wait = 15 * (attempt + 1)
-                print(f"  ⏳ Rate limited — waiting {wait}s (retry {attempt+1}/{retries})...", file=sys.stderr)
-                time.sleep(wait)
-            else:
-                print(f"  ⚠ HTTP {e.code}: {e}", file=sys.stderr)
-                return None
-        except URLError as e:
-            print(f"  ⚠ URL error: {e}", file=sys.stderr)
-            return None
-    print("  ⚠ Max retries reached", file=sys.stderr)
-    return None
-
-# ─── Parse predictions.ts ─────────────────────────────────────────────────────
-
-def load_predictions() -> list[dict]:
-    if not PRED_FILE.exists():
-        return []
-    content = PRED_FILE.read_text(encoding="utf-8")
-    predictions = []
-    blocks = re.findall(r'\{[^{}]+\}', content, re.DOTALL)
-    for block in blocks:
-        pred = {}
-        for key in ["id", "league", "leagueName", "home", "away", "tip", "tipType", "odds", "confidence",
-                    "homeLogoUrl", "awayLogoUrl"]:
-            m = re.search(rf'{key}:\s*(["\d][^,\n]+)', block)
-            if m:
-                val = m.group(1).strip().strip('"').strip("'").rstrip(',')
-                if key == "confidence":
-                    try:
-                        pred[key] = int(val)
-                    except ValueError:
-                        pred[key] = 0
-                else:
-                    pred[key] = val
-        # Parse form arrays
-        for fkey in ["homeForm", "awayForm"]:
-            fm = re.search(rf'{fkey}:\s*\[([^\]]+)\]', block)
-            if fm:
-                pred[fkey] = [v.strip().strip('"') for v in fm.group(1).split(',')]
-        if pred.get("home") and pred.get("away"):
-            predictions.append(pred)
-    return predictions
-
-# ─── Gemini API ───────────────────────────────────────────────────────────────
+# ─── Groq API ─────────────────────────────────────────────────────────────────
 
 def call_groq(prompt: str) -> str | None:
-    """Call Groq API (OpenAI-compatible). Returns text or None."""
     if not GROQ_API_KEY:
         return None
     payload = {
-        "model": "llama3-8b-8192",
+        "model": GROQ_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.7,
-        "max_tokens": 600,
+        "max_tokens": 700,
     }
     try:
         body = json.dumps(payload).encode()
@@ -140,46 +77,48 @@ def call_groq(prompt: str) -> str | None:
             data = json.loads(r.read())
             return data["choices"][0]["message"]["content"]
     except HTTPError as e:
-        print(f"  ⚠ Groq HTTP {e.code}: {e}", file=sys.stderr)
+        body_text = e.read().decode() if hasattr(e, 'read') else ''
+        print(f"  ⚠ Groq HTTP {e.code}: {body_text[:200]}", file=sys.stderr)
         return None
     except Exception as e:
         print(f"  ⚠ Groq error: {e}", file=sys.stderr)
         return None
 
+# ─── Parse predictions.ts ─────────────────────────────────────────────────────
 
-def call_gemini(prompt: str) -> str | None:
-    """Call Gemini API with retry on rate limit. Returns text or None."""
-    if not GEMINI_API_KEY:
-        return None
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 600},
-    }
-    for attempt in range(3):
-        try:
-            body = json.dumps(payload).encode()
-            req = Request(GEMINI_URL.format(key=GEMINI_API_KEY), data=body, headers={
-                "Content-Type": "application/json",
-            })
-            with urlopen(req, timeout=30) as r:
-                data = json.loads(r.read())
-                return data["candidates"][0]["content"]["parts"][0]["text"]
-        except HTTPError as e:
-            if e.code == 429:
-                wait = 15 * (attempt + 1)
-                print(f"  ⏳ Gemini rate limited — waiting {wait}s (retry {attempt+1}/3)...", file=sys.stderr)
-                time.sleep(wait)
-            else:
-                print(f"  ⚠ Gemini HTTP {e.code}", file=sys.stderr)
-                return None
-        except Exception as e:
-            print(f"  ⚠ Gemini error: {e}", file=sys.stderr)
-            return None
-    return None
+def load_predictions() -> list[dict]:
+    if not PRED_FILE.exists():
+        return []
+    content = PRED_FILE.read_text(encoding="utf-8")
+    predictions = []
+    blocks = re.findall(r'\{[^{}]+\}', content, re.DOTALL)
+    for block in blocks:
+        pred = {}
+        for key in ["id", "league", "leagueName", "home", "away", "tip", "tipType",
+                    "odds", "confidence", "homeLogoUrl", "awayLogoUrl"]:
+            m = re.search(rf'{key}:\s*"([^"]*)"', block)
+            if m:
+                val = m.group(1)
+                if key == "confidence":
+                    try: pred[key] = int(val)
+                    except: pred[key] = 0
+                else:
+                    pred[key] = val
+        m = re.search(r'confidence:\s*(\d+)', block)
+        if m:
+            pred["confidence"] = int(m.group(1))
+        for fkey in ["homeForm", "awayForm"]:
+            fm = re.search(rf'{fkey}:\s*\[([^\]]+)\]', block)
+            if fm:
+                pred[fkey] = [v.strip().strip('"') for v in fm.group(1).split(',')]
+        if pred.get("home") and pred.get("away"):
+            predictions.append(pred)
+    return predictions
 
+# ─── Article generation ───────────────────────────────────────────────────────
 
 def generate_article(match: dict) -> dict | None:
-    if not GROQ_API_KEY and not GEMINI_API_KEY:
+    if not GROQ_API_KEY:
         return None
 
     home       = match.get("home", "")
@@ -195,15 +134,15 @@ def generate_article(match: dict) -> dict | None:
 Match: {home} vs {away} ({league})
 Our tip: {tip} ({tip_type}) @ {odds} odds — {confidence}% confidence
 
-Write in plain text only (no markdown symbols, no unicode escapes):
-1. English title (max 10 words)
-2. English excerpt (2 sentences)
-3. English article body (3 paragraphs: team form, head-to-head, our prediction reasoning)
-4. Amharic title
-5. Amharic excerpt
-6. Amharic article body
+Write in plain text only (no markdown, no asterisks, no unicode escapes):
+- English title (max 10 words)
+- English excerpt (2 sentences about the match)
+- English article body (3 short paragraphs: team form, head-to-head history, prediction reasoning)
+- Amharic title (translation)
+- Amharic excerpt (translation)
+- Amharic article body (translation)
 
-Use this EXACT format:
+Respond in EXACTLY this format with no extra text:
 TITLE_EN: [title]
 EXCERPT_EN: [excerpt]
 BODY_EN: [body]
@@ -211,19 +150,7 @@ TITLE_AM: [title]
 EXCERPT_AM: [excerpt]
 BODY_AM: [body]"""
 
-    # Try Groq first (faster, higher limits), fall back to Gemini
-    if GROQ_API_KEY:
-        print(f"    Using Groq...", file=sys.stderr)
-        text = call_groq(prompt)
-    else:
-        print(f"    Using Gemini...", file=sys.stderr)
-        text = call_gemini(prompt)
-
-    # If primary failed, try the other
-    if not text and GEMINI_API_KEY:
-        print(f"    Groq failed, trying Gemini...", file=sys.stderr)
-        text = call_gemini(prompt)
-
+    text = call_groq(prompt)
     if not text:
         return None
 
@@ -231,7 +158,7 @@ BODY_AM: [body]"""
         m = re.search(pattern, text, re.DOTALL)
         return m.group(1).strip() if m else ""
 
-    return {
+    result = {
         "titleEn":   extract(r'TITLE_EN:\s*(.+)'),
         "excerptEn": extract(r'EXCERPT_EN:\s*(.+)'),
         "bodyEn":    extract(r'BODY_EN:\s*([\s\S]+?)(?=TITLE_AM:|$)'),
@@ -239,6 +166,12 @@ BODY_AM: [body]"""
         "excerptAm": extract(r'EXCERPT_AM:\s*(.+)'),
         "bodyAm":    extract(r'BODY_AM:\s*([\s\S]+?)$'),
     }
+
+    # Return None if parsing failed
+    if not result["titleEn"] or not result["bodyEn"]:
+        return None
+
+    return result
 
 # ─── Template fallback ────────────────────────────────────────────────────────
 
@@ -257,25 +190,23 @@ def template_article(match: dict) -> dict:
     af = " ".join(form_map.get(f, "?") for f in away_form[-5:])
 
     body_en = (
-        f"{home} take on {away} in what promises to be an exciting {league} clash. "
-        f"Recent form shows {home} going {hf} while {away} have recorded {af} in their last five outings.\n\n"
+        f"{home} take on {away} in {league}. "
+        f"Recent form: {home} — {hf}, {away} — {af}.\n\n"
         f"Head-to-head records and current form both point towards an interesting contest. "
-        f"Both sides have shown quality in recent weeks and this match could go either way.\n\n"
-        f"Our analysts back {tip} at odds of {odds}. Confidence level: {confidence}%. "
-        f"Place your bet on 1xBet or Melbet for the best available odds. Always bet responsibly."
+        f"Both sides have shown quality in recent weeks.\n\n"
+        f"Our analysts back {tip} at odds of {odds}. Confidence: {confidence}%. "
+        f"Place your bet on 1xBet or Melbet. Always bet responsibly."
     )
-
     body_am = (
-        f"{home} እና {away} በ{league} ጨዋታ ይፋለማሉ። "
-        f"የቅርብ ቅርፅ {home} {hf} ሲሆን {away} ደግሞ {af} ነው።\n\n"
+        f"{home} እና {away} በ{league} ይፋለማሉ። "
+        f"የቅርብ ቅርፅ: {home} — {hf}, {away} — {af}።\n\n"
         f"ፊት ለፊት ሪከርድ እና የቅርብ ቅርፅ ሁለቱም ወደ አስደሳች ጨዋታ ያመለክታሉ።\n\n"
         f"ምክራችን {tip} በ{odds} ኦድስ ነው። የእምነት ደረጃ: {confidence}%። "
-        f"ለምርጥ ኦድስ በ1xBet ወይም Melbet ላይ ቁማርዎን ይጫወቱ። ሁልጊዜ በኃላፊነት ይወርቁ።"
+        f"ሁልጊዜ በኃላፊነት ይወርቁ።"
     )
-
     return {
         "titleEn":   f"{home} vs {away}: Match Preview & Prediction",
-        "excerptEn": f"{home} host {away} in {league}. Our tip is {tip} at {odds} odds ({confidence}% confidence).",
+        "excerptEn": f"{home} host {away} in {league}. Our tip: {tip} at {odds} odds ({confidence}% confidence).",
         "bodyEn":    body_en,
         "titleAm":   f"{home} vs {away}: የጨዋታ ቅድመ-ዕይታ እና ትንበያ",
         "excerptAm": f"{home} ዛሬ {away}ን ያስተናግዳሉ። ምክራችን {tip} በ{odds} ኦድስ ({confidence}% እምነት)።",
@@ -287,8 +218,9 @@ def template_article(match: dict) -> dict:
 def main():
     print(f"\n✍️  EthioPredict analysis generator — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n")
 
-    if not GROQ_API_KEY and not GEMINI_API_KEY:
-        print("⚠️  No AI key set — using template fallback.\n")
+    if not GROQ_API_KEY:
+        print("⚠️  GROQ_API_KEY not set — using template fallback.\n")
+        print("   Get a free key at https://console.groq.com\n")
 
     predictions = load_predictions()
     if not predictions:
@@ -313,11 +245,12 @@ def main():
 
         article = generate_article(match) or template_article(match)
 
+        # Small delay between Groq calls
         if i < len(top_matches) - 1:
-            time.sleep(2)
+            time.sleep(1)
 
-        emoji, tag   = LEAGUE_EMOJIS.get(league_key, ("⚽", "Football Analysis"))
-        thumb_class  = THUMB_CLASSES[i % len(THUMB_CLASSES)]
+        emoji, tag  = LEAGUE_EMOJIS.get(league_key, ("⚽", "Football Analysis"))
+        thumb_class = THUMB_CLASSES[i % len(THUMB_CLASSES)]
 
         blog_posts.append({
             "id":          f"blog-{today.strftime('%Y%m%d')}-{i+1:02d}",
@@ -338,7 +271,6 @@ def main():
             "awayLogoUrl": match.get("awayLogoUrl", ""),
         })
 
-    # Write blog.ts
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
         f"// AUTO-GENERATED by scripts/generate_analysis.py — {now_str}",

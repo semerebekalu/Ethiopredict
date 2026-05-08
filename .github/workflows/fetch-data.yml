@@ -26,9 +26,9 @@ jobs:
       - name: Fetch fixtures, results, standings from ESPN
         run: python ethiopredict/scripts/fetch_data.py
 
-      - name: Generate AI match analysis (requires GEMINI_API_KEY secret)
+      - name: Generate AI match analysis (requires GROQ_API_KEY secret)
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python ethiopredict/scripts/generate_analysis.py
 
       - name: Post predictions to Telegram
