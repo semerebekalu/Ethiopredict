@@ -12,8 +12,8 @@ from pathlib import Path
 from urllib.request import urlopen, Request
 from urllib.error import URLError
 
-BOT_TOKEN  = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-CHANNEL_ID_RAW = os.environ.get("TELEGRAM_CHANNEL_ID", "").strip()
+BOT_TOKEN  = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip().replace('\n', '').replace('\r', '').replace(' ', '')
+CHANNEL_ID_RAW = os.environ.get("TELEGRAM_CHANNEL_ID", "").strip().replace('\n', '').replace('\r', '')
 # Add @ prefix if it's a username without it, unless it's a numeric ID
 if CHANNEL_ID_RAW and not CHANNEL_ID_RAW.startswith("@") and not CHANNEL_ID_RAW.startswith("-"):
     CHANNEL_ID = f"@{CHANNEL_ID_RAW}"
@@ -88,6 +88,7 @@ def format_predictions(predictions: list[dict]) -> str:
 
 def main():
     print("📤 Posting predictions to Telegram...")
+    print(f"  Token length: {len(BOT_TOKEN)}, Channel: {CHANNEL_ID}", file=sys.stderr)
     predictions = load_predictions()
     if not predictions:
         print("⚠ No predictions found")
